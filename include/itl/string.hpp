@@ -263,8 +263,8 @@ public:
     using Base::find_last_of;
     using Base::find_first_not_of;
     using Base::find_last_not_of;
-    using Base::substr;
     using Base::compare;
+    basic_string<Char, Traits, Alloc> substr(size_type pos = 0, size_type len = npos) const;
 };
 
 
@@ -626,6 +626,15 @@ template <typename Char, typename Traits, typename Alloc>
 void basic_string<Char, Traits, Alloc>::swap(This &other)
 {
     ref().swap(other.ref());
+}
+
+
+template <typename Char, typename Traits, typename Alloc>
+auto basic_string<Char, Traits, Alloc>::substr(size_type pos,
+        size_type len) const
+    -> basic_string<Char, Traits, Alloc>
+{
+    return This(*this, pos, len, get_allocator());
 }
 
 
