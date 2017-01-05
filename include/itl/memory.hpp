@@ -13,6 +13,15 @@
 
 namespace itl
 {
+// FORWARD
+// -------
+
+template <typename T>
+class shared_ptr;
+
+template <typename T>
+class weak_ptr;
+
 // DECLARATION
 // -----------
 
@@ -25,6 +34,12 @@ class shared_ptr: protected std::shared_ptr<T>
 protected:
     typedef std::shared_ptr<T> Base;
     typedef shared_ptr<T> This;
+
+    template <typename U>
+    friend class weak_ptr;
+
+    template <typename U>
+    friend class shared_ptr;
 
     const Base & ref() const;
     Base & ref();
@@ -139,8 +154,50 @@ public:
 
     // MEMBER FUNCTIONS
     // ----------------
-    using Base::Base;
+    constexpr shared_ptr() noexcept;
+    constexpr shared_ptr(std::nullptr_t nullp) noexcept;
     virtual ~shared_ptr();
+
+    shared_ptr(const Base &other);
+    shared_ptr(Base &&other);
+    shared_ptr(const This &other);
+    shared_ptr(This &&other);
+
+    template <typename U>
+    shared_ptr(U *u);
+
+    template <typename U, typename Deleter>
+    shared_ptr(U *u, Deleter d);
+
+    template <typename Deleter>
+    shared_ptr(std::nullptr_t nullp, Deleter d);
+
+    template <typename U, typename Deleter, typename Alloc>
+    shared_ptr(U *u, Deleter d, Alloc alloc);
+
+    template <typename Deleter, typename Alloc>
+    shared_ptr(std::nullptr_t nullp, Deleter d, Alloc alloc);
+
+    template <typename U>
+    shared_ptr(const shared_ptr<U> &other, element_type *ptr);
+
+    template <typename U>
+    shared_ptr(const shared_ptr<U> &other);
+
+    template <typename U>
+    shared_ptr(shared_ptr<U> &&other);
+
+    template <typename U>
+    shared_ptr(const std::weak_ptr<U> &other);
+
+    template <typename U>
+    shared_ptr(const weak_ptr<U> &other);
+
+    template <typename U, typename Deleter>
+    shared_ptr(std::unique_ptr<U, Deleter> &&other);
+
+    This & operator=(const Base &other);
+    This & operator=(Base &&other);
 
     // MODIFIERS
     using Base::reset;
@@ -153,6 +210,71 @@ public:
     using Base::use_count;
     using Base::unique;
     using Base::operator bool;
+    using Base::owner_before;
+};
+
+
+/** \brief Inheritable weak_ptr
+ */
+template <typename T>
+class weak_ptr: protected std::weak_ptr<T>
+{
+protected:
+    typedef std::weak_ptr<T> Base;
+    typedef weak_ptr<T> This;
+
+    template <typename U>
+    friend class weak_ptr;
+
+    template <typename U>
+    friend class shared_ptr;
+
+    const Base & ref() const;
+    Base & ref();
+    const Base && forward() const;
+    Base && forward();
+
+    // NON-MEMBER FUNCTIONS
+    // --------------------
+    template <typename U>
+    friend void swap(weak_ptr<U> &left, weak_ptr<U> &right);
+
+public:
+    constexpr weak_ptr() noexcept;
+    ~weak_ptr();
+
+    weak_ptr(const This &other);
+    weak_ptr(This &&other);
+
+    template <typename U>
+    weak_ptr(const shared_ptr<U> &other) noexcept;
+
+    template <typename U>
+    weak_ptr(const weak_ptr<U> &other);
+
+    template <typename U>
+    weak_ptr(weak_ptr<U> &&other);
+
+    This & operator=(const This &other);
+    This & operator=(This &&other);
+
+    template <typename U>
+    This & operator=(const shared_ptr<U> &other) noexcept;
+
+    template <typename U>
+    This & operator=(const weak_ptr<U> &other);
+
+    template <typename U>
+    This & operator=(weak_ptr<U> &&other);
+
+    // MODIFIERS
+    using Base::reset;
+    void swap(This &other);
+
+    // OBSERVERS
+    using Base::use_count;
+    using Base::expired;
+    using Base::lock;
     using Base::owner_before;
 };
 
@@ -408,7 +530,7 @@ template <typename T, typename U>
 shared_ptr<T> static_pointer_cast(const shared_ptr<U> &r) noexcept
 {
     auto p = static_cast<typename shared_ptr<T>::element_type*>(r.get());
-    return shared_ptr<T>(r.ref(), p);
+    return shared_ptr<T>(r, p);
 }
 
 
@@ -416,7 +538,7 @@ template <typename T, typename U>
 shared_ptr<T> dynamic_pointer_cast(const shared_ptr<U> &r) noexcept
 {
     if (auto p = dynamic_cast<typename shared_ptr<T>::element_type*>(r.get())) {
-        return shared_ptr<T>(r.ref(), p);
+        return shared_ptr<T>(r, p);
     } else {
         return shared_ptr<T>();
     }
@@ -427,7 +549,7 @@ template <typename T, typename U>
 shared_ptr<T> const_pointer_cast(const shared_ptr<U> &r) noexcept
 {
     auto p = const_cast<typename shared_ptr<T>::element_type*>(r.get());
-    return shared_ptr<T>(r.ref(), p);
+    return shared_ptr<T>(r, p);
 }
 
 
@@ -435,7 +557,138 @@ template <typename T, typename U>
 shared_ptr<T> reinterpret_pointer_cast(const shared_ptr<U> &r) noexcept
 {
     auto p = reinterpret_cast<typename shared_ptr<T>::element_type*>(r.get());
-    return shared_ptr<T>(r.ref(), p);
+    return shared_ptr<T>(r, p);
+}
+
+
+template <typename T>
+constexpr shared_ptr<T>::shared_ptr() noexcept
+{}
+
+template <typename T>
+constexpr shared_ptr<T>::shared_ptr(std::nullptr_t nullp) noexcept
+{}
+
+
+template <typename T>
+template <typename U>
+shared_ptr<T>::shared_ptr(U *u):
+    Base(u)
+{}
+
+
+template <typename T>
+template <typename U, typename Deleter>
+shared_ptr<T>::shared_ptr(U *u,
+        Deleter d):
+    Base(u, d)
+{}
+
+
+template <typename T>
+template <typename Deleter>
+shared_ptr<T>::shared_ptr(std::nullptr_t nullp,
+        Deleter d):
+    Base(nullp, d)
+{}
+
+
+template <typename T>
+template <typename U, typename Deleter, typename Alloc>
+shared_ptr<T>::shared_ptr(U *u,
+        Deleter d,
+        Alloc alloc):
+    Base(u, d, alloc)
+{}
+
+
+template <typename T>
+template <typename Deleter, typename Alloc>
+shared_ptr<T>::shared_ptr(std::nullptr_t nullp,
+        Deleter d,
+        Alloc alloc):
+    Base(nullp, d, alloc)
+{}
+
+
+template <typename T>
+template <typename U>
+shared_ptr<T>::shared_ptr(const shared_ptr<U> &other,
+        element_type *ptr):
+    Base(other.ref(), ptr)
+{}
+
+template <typename T>
+template <typename U>
+shared_ptr<T>::shared_ptr(const shared_ptr<U> &other):
+    Base(other.ref())
+{}
+
+template <typename T>
+template <typename U>
+shared_ptr<T>::shared_ptr(shared_ptr<U> &&other):
+    Base(other.forward())
+{}
+
+
+template <typename T>
+template <typename U>
+shared_ptr<T>::shared_ptr(const std::weak_ptr<U> &other):
+    Base(other)
+{}
+
+template <typename T>
+template <typename U>
+shared_ptr<T>::shared_ptr(const weak_ptr<U> &other):
+    Base(other.ref())
+{}
+
+template <typename T>
+template <typename U, typename Deleter>
+shared_ptr<T>::shared_ptr(std::unique_ptr<U, Deleter> &&other):
+    Base(std::move(other))
+{}
+
+
+template <typename T>
+shared_ptr<T>::shared_ptr(const Base &other):
+    Base(other)
+{}
+
+
+template <typename T>
+shared_ptr<T>::shared_ptr(const This &other):
+    Base(other.ref())
+{}
+
+
+template <typename T>
+shared_ptr<T>::shared_ptr(Base &&other):
+    Base(std::move(other))
+{}
+
+
+template <typename T>
+shared_ptr<T>::shared_ptr(This &&other):
+    Base(other.forward())
+{}
+
+
+template <typename T>
+auto shared_ptr<T>::operator=(const Base &other)
+    -> This &
+{
+    Base::operator=(other);
+    return *this;
+}
+
+
+template <typename T>
+auto shared_ptr<T>::operator=(Base &&other)
+    -> This &
+{
+    Base::operator=(std::move(other));
+    return *this;
 }
 
 
@@ -449,6 +702,163 @@ void shared_ptr<T>::swap(This &other)
 {
     ref().swap(other.ref());
 }
+
+
+template <typename T>
+auto weak_ptr<T>::ref() const
+    -> const Base &
+{
+    return static_cast<const Base&>(*this);
+}
+
+
+template <typename T>
+auto weak_ptr<T>::ref()
+    -> Base &
+{
+    return static_cast<Base&>(*this);
+}
+
+
+template <typename T>
+auto weak_ptr<T>::forward() const
+    -> const Base &&
+{
+    return static_cast<const Base&&>(*this);
+}
+
+
+template <typename T>
+auto weak_ptr<T>::forward()
+    -> Base &&
+{
+    return static_cast<Base&&>(*this);
+}
+
+
+template <typename T>
+void swap(weak_ptr<T> &left, weak_ptr<T> &right)
+{
+    left.swap(right);
+}
+
+
+template <typename T>
+constexpr weak_ptr<T>::weak_ptr() noexcept
+{}
+
+
+template <typename T>
+weak_ptr<T>::~weak_ptr()
+{}
+
+
+template <typename T>
+weak_ptr<T>::weak_ptr(const This &other):
+    Base(other.ref())
+{}
+
+
+template <typename T>
+template <typename U>
+weak_ptr<T>::weak_ptr(const shared_ptr<U> &other) noexcept :
+    Base(other.ref())
+{}
+
+
+template <typename T>
+weak_ptr<T>::weak_ptr(This &&other):
+    Base(other.forward())
+{}
+
+
+template <typename T>
+template <typename U>
+weak_ptr<T>::weak_ptr(const weak_ptr<U> &other):
+    Base(other.ref())
+{}
+
+
+template <typename T>
+template <typename U>
+weak_ptr<T>::weak_ptr(weak_ptr<U> &&other):
+    Base(other.forward())
+{}
+
+
+template <typename T>
+auto weak_ptr<T>::operator=(const This &other)
+    -> This &
+{
+    Base::operator=(other.ref());
+    return *this;
+}
+
+
+template <typename T>
+auto weak_ptr<T>::operator=(This &&other)
+    -> This &
+{
+    Base::operator=(other.forward());
+    return *this;
+}
+
+
+template <typename T>
+template <typename U>
+auto weak_ptr<T>::operator=(const shared_ptr<U> &other) noexcept
+    -> This &
+{
+    Base::operator=(other.ref());
+    return *this;
+}
+
+
+template <typename T>
+template <typename U>
+auto weak_ptr<T>::operator=(const weak_ptr<U> &other)
+    -> This &
+{
+    Base::operator=(other.ref());
+    return *this;
+}
+
+
+template <typename T>
+template <typename U>
+auto weak_ptr<T>::operator=(weak_ptr<U> &&other)
+    -> This &
+{
+    Base::operator=(other.forward());
+    return *this;
+}
+
+
+template <typename T>
+void weak_ptr<T>::swap(This &other)
+{
+    Base::swap(other.ref());
+}
+
+
+// FUNCTIONS
+// ---------
+
+
+template <typename T, typename... Ts>
+shared_ptr<T> make_shared(Ts&&... ts)
+{
+    return shared_ptr<T>(std::make_shared<T>(std::forward<Ts>(ts)...));
+}
+
+
+template <typename T, typename Alloc, typename... Ts>
+shared_ptr<T> allocate_shared(const Alloc& alloc,
+    Ts&&... ts)
+{
+    return shared_ptr<T>(std::allocate_shared<T, Alloc>(alloc, std::forward<Ts>(ts)...));
+}
+
 
 }   /* itl */
 

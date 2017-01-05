@@ -27,6 +27,9 @@ TEST(shared_ptr, NonMemberFunctions)
 {
     itl::shared_ptr<int> x(new int(5));
     itl::shared_ptr<int> y(new int(3));
+    auto z = itl::make_shared<int>(5);
+    std::allocator<int> alloc;
+    auto w = itl::allocate_shared<int>(alloc, 5);
 
     // don't care about value, random pointer locations
     // just care methods successfully call
@@ -37,7 +40,7 @@ TEST(shared_ptr, NonMemberFunctions)
     EXPECT_TRUE(x >= y | true);
     EXPECT_TRUE(x > y | true);
 
-    std::swap(x, y);
+    itl::swap(x, y);
     EXPECT_EQ(*x, 3);
     EXPECT_EQ(*y, 5);
 
@@ -65,4 +68,16 @@ TEST(shared_ptr, Casts)
     auto i = itl::static_pointer_cast<int>(x);
     auto c = itl::const_pointer_cast<const int>(i);
     auto u = itl::reinterpret_pointer_cast<const unsigned int>(i);
+}
+
+
+TEST(weak_ptr, MemberFunctions)
+{
+    itl::shared_ptr<int> x(new int(5));
+    itl::weak_ptr<int> w1(x);
+    itl::weak_ptr<int> w2(x);
+    itl::swap(w1, w2);
+    w1.swap(w2);
+
+    itl::shared_ptr<int> z(w1);
 }
