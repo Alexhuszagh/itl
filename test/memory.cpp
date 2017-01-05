@@ -20,6 +20,9 @@ TEST(shared_ptr, MemberFunctions)
 
     EXPECT_EQ(*x, 3);
     EXPECT_EQ(*y, 5);
+
+    x = itl::make_shared<int>(4);
+    y = x;
 }
 
 

@@ -198,6 +198,8 @@ public:
 
     This & operator=(const Base &other);
     This & operator=(Base &&other);
+    This & operator=(const This &other);
+    This & operator=(This &&other);
 
     // MODIFIERS
     using Base::reset;
@@ -688,6 +690,24 @@ auto shared_ptr<T>::operator=(Base &&other)
     -> This &
 {
     Base::operator=(std::move(other));
+    return *this;
+}
+
+
+template <typename T>
+auto shared_ptr<T>::operator=(const This &other)
+    -> This &
+{
+    Base::operator=(other.ref());
+    return *this;
+}
+
+
+template <typename T>
+auto shared_ptr<T>::operator=(This &&other)
+    -> This &
+{
+    Base::operator=(other.forward());
     return *this;
 }
 
