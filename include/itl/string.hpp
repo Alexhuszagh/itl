@@ -207,7 +207,7 @@ public:
 
     // MEMBER VARIABLES
     // ----------------
-    static const size_type npos = Base::npos;
+    static const size_type npos = SIZE_MAX;
 
     // MEMBER FUNCTIONS
     // ----------------
